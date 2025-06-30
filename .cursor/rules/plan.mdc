@@ -1,0 +1,260 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Camera-Based Paragliding Controller Plan
+
+## Project Overview
+
+Create a Windows application that uses computer vision to track blue gloves and hand movements via a phone camera, translating them into virtual game controller inputs that emulate the Para Controller for GliderSim.
+
+## System Architecture
+
+### Input Pipeline
+
+1. **Camera Input**: Phone camera connected via IP Webcam or similar
+2. **Video Processing**: Real-time hand and color tracking
+3. **Control Mapping**: Convert hand positions/gestures to controller inputs
+4. **Virtual Controller**: Emulate Para Controller HID device
+
+### Key Components
+
+- **Vision System**: OpenCV + MediaPipe for hand tracking
+- **Blue Glove Detection**: HSV color space filtering
+- **Virtual Joystick**: vJoy driver for Windows HID emulation
+- **Control Interface**: Maps 4 axes + 4 buttons like Para Controller Mini
+
+## Technology Stack
+
+### Core Technologies
+
+1. **Programming Language**: Python 3.9+
+
+   - Fast prototyping
+   - Excellent computer vision libraries
+   - Good Windows integration
+
+2. **Computer Vision**:
+
+   - **OpenCV**: For video capture and color detection
+   - **MediaPipe**: For robust hand tracking and gesture recognition
+   - **NumPy**: For efficient array operations
+
+3. **Virtual Controller**:
+
+   - **vJoy**: Virtual joystick driver for Windows
+   - **pyvjoy**: Python bindings for vJoy
+   - Alternative: **ViGEm** (Virtual Gamepad Emulation)
+
+4. **Phone Camera Integration**:
+
+   - **IP Webcam** (Android)
+   - **DroidCam** (Android/iOS)
+   - **EpocCam** (iOS)
+   - Direct USB connection with appropriate drivers
+
+5. **GUI Framework** (optional):
+   - **Tkinter**: For configuration interface
+   - **PyQt5**: For more advanced UI needs
+
+## Implementation Steps
+
+### Phase 1: Environment Setup (Week 1)
+
+1. **Install Development Tools**
+
+   - Python 3.9+ with pip
+   - Visual Studio Code or PyCharm
+   - Git for version control
+
+2. **Install Core Libraries**
+
+   ```bash
+   pip install opencv-python mediapipe numpy
+   pip install pyvjoy pywin32
+   ```
+
+3. **Install vJoy Driver**
+
+   - Download and install vJoy from official site
+   - Configure virtual device with 4 axes and 8 buttons
+
+4. **Set Up Phone Camera**
+   - Install IP Webcam app on phone
+   - Test connection and video stream
+
+### Phase 2: Basic Vision System (Week 2)
+
+1. **Camera Capture Module**
+
+   - Connect to phone camera stream
+   - Handle connection errors and reconnection
+   - Optimize frame rate and resolution
+
+2. **Blue Glove Detection**
+
+   - Implement HSV color space filtering
+   - Create calibration routine for different lighting
+   - Add noise reduction and morphological operations
+
+3. **Hand Tracking Integration**
+   - Implement MediaPipe hand detection
+   - Track both hands simultaneously
+   - Extract key landmarks (fingertips, palm center)
+
+### Phase 3: Control Mapping (Week 3)
+
+1. **Define Control Scheme**
+
+   - **Left hand position** → X/Y axes (brake controls)
+   - **Right hand position** → Z axis (speed bar)
+   - **Hand rotation** → X-axis rotation (weight shift)
+   - **Gestures** → Buttons (e.g., fist = button 1, peace sign = button 2)
+
+2. **Implement Mapping Logic**
+
+   - Dead zones for neutral positions
+   - Smoothing filters for jittery input
+   - Calibration for user's range of motion
+
+3. **Gesture Recognition**
+   - Implement basic gestures (fist, open palm, peace sign, thumbs up)
+   - Map gestures to button presses
+   - Add gesture confidence thresholds
+
+### Phase 4: Virtual Controller Integration (Week 4)
+
+1. **vJoy Interface**
+
+   - Initialize vJoy device
+   - Map processed inputs to vJoy axes/buttons
+   - Handle device acquisition and release
+
+2. **Controller Emulation**
+
+   - Match Para Controller's axis ranges (-127 to 127 for X/Y/Z)
+   - Implement button states (pressed/released)
+   - Add axis rotation (0-359 degrees)
+
+3. **Testing with GliderSim**
+   - Verify controller detection
+   - Fine-tune axis mappings
+   - Adjust sensitivity and dead zones
+
+### Phase 5: User Interface & Calibration (Week 5)
+
+1. **Configuration GUI**
+
+   - Camera selection and settings
+   - Color calibration for blue gloves
+   - Control mapping customization
+   - Sensitivity adjustments
+
+2. **Visual Feedback**
+
+   - Show camera feed with tracking overlay
+   - Display current controller state
+   - Show hand detection confidence
+
+3. **Calibration Wizard**
+   - Guide user through initial setup
+   - Save/load calibration profiles
+   - Per-user settings
+
+### Phase 6: Optimization & Polish (Week 6)
+
+1. **Performance Optimization**
+
+   - Multi-threading for video processing
+   - GPU acceleration where possible
+   - Reduce latency to <50ms
+
+2. **Error Handling**
+
+   - Graceful camera disconnection handling
+   - Fallback for poor lighting conditions
+   - User notifications for issues
+
+3. **Advanced Features**
+   - Head tracking for view control
+   - Voice commands integration
+   - Recording and playback of sessions
+
+## Project Structure
+
+```
+my-controller/
+├── src/
+│   ├── camera/
+│   │   ├── capture.py       # Camera connection and frame capture
+│   │   └── calibration.py   # Color and camera calibration
+│   ├── vision/
+│   │   ├── hand_tracker.py  # MediaPipe hand tracking
+│   │   ├── color_tracker.py # Blue glove detection
+│   │   └── gesture.py       # Gesture recognition
+│   ├── controller/
+│   │   ├── vjoy_interface.py # vJoy communication
+│   │   ├── mapping.py       # Input to controller mapping
+│   │   └── filters.py       # Smoothing and dead zones
+│   ├── gui/
+│   │   ├── main_window.py   # Main application window
+│   │   ├── calibration.py   # Calibration interface
+│   │   └── settings.py      # Settings dialog
+│   └── main.py              # Application entry point
+├── config/
+│   ├── default_config.json  # Default settings
+│   └── mappings.json        # Control mappings
+├── tests/
+│   └── test_*.py           # Unit tests
+├── docs/
+│   └── user_manual.md      # User documentation
+├── requirements.txt         # Python dependencies
+└── README.md               # Project documentation
+```
+
+## Key Challenges & Solutions
+
+### 1. Lighting Variations
+
+- **Challenge**: Blue glove detection in different lighting
+- **Solution**: HSV color space, adaptive thresholds, calibration routine
+
+### 2. Latency
+
+- **Challenge**: Real-time response for gaming
+- **Solution**: Multi-threading, frame skipping, optimized algorithms
+
+### 3. Hand Occlusion
+
+- **Challenge**: Hands overlapping or partially visible
+- **Solution**: Predictive tracking, separate hand detection for each hand
+
+### 4. Gesture Reliability
+
+- **Challenge**: Accurate gesture recognition during movement
+- **Solution**: Confidence thresholds, gesture hold times, visual feedback
+
+## Testing Strategy
+
+1. **Unit Tests**: For individual components
+2. **Integration Tests**: Camera + vision + controller pipeline
+3. **Performance Tests**: Latency and frame rate measurements
+4. **User Testing**: With actual GliderSim gameplay
+
+## Success Metrics
+
+- Input latency < 50ms
+- Hand tracking accuracy > 95%
+- Gesture recognition accuracy > 90%
+- Stable 30+ FPS processing
+- Seamless integration with GliderSim
+
+## Future Enhancements
+
+- Machine learning for improved gesture recognition
+- Support for other paragliding games
+- Mobile app version
+- VR headset integration
+- Multi-player support with shared sessions
+

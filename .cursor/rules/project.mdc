@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Overview
+
+I intend to create a camera controller that is a game controller for paragliding games.
+The idea is to use a blue gloves and a phone as a camera, and translate the hand movements to a controller input.
+There is a project called para-controller-mini that is a game controller for paragliding games. It is made for arduino, to be plugged into usb.  
+The game I want to use is called GliderSim, and one of the options is to use the "Para Controller" as a controller. I'd like to do the same, I want to emulate a Controller, and then hook it to a camera and use computational vision to estimate the hand and head movements.
+
+## my-controller
+
+I want to create a new project called my-controller, and use the para-controller-mini project as a reference. This should run on windows.
+

@@ -1,0 +1,3 @@
+{
+  "python.defaultInterpreterPath": "./my-controller/.venv/Scripts/python.exe"
+}
