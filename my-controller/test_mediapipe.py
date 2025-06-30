@@ -35,6 +35,13 @@ class HandState(Enum):
 left_hand_status = HandState.TRACKING
 right_hand_status = HandState.TRACKING
 
+# Gesture debounce/streak variables
+GESTURE_STREAK_REQUIRED = 3
+left_gesture_streak = 0
+right_gesture_streak = 0
+left_last_seen_gesture = None
+right_last_seen_gesture = None
+
 # New calibration state machine
 class CalibrationStatus(Enum):
     NOT_CALIBRATED = "Show two open hands to begin calibration"
@@ -280,23 +287,43 @@ if __name__ == "__main__":
                     display_image = cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR)
                     
                     if is_calibrated:
-                        # --- INDIVIDUAL HAND STATE LOGIC ---
+                        # --- INDIVIDUAL HAND STATE LOGIC with DEBOUNCE ---
                         landmarks_3d = latest_pose_result.pose_world_landmarks[0]
                         current_head_pos_3d = landmarks_3d[0]
                         
-                        # Left Hand State
-                        if left_hand_status == HandState.TRACKING and current_gestures.get('Left') == 'Open_Palm':
-                            left_hand_status = HandState.RELEASED
-                        elif left_hand_status == HandState.RELEASED and current_gestures.get('Left') == 'Closed_Fist':
-                            left_hand_status = HandState.TRACKING
-                            initial_state['left_hand_head_y_offset'] = landmarks_3d[15].y - current_head_pos_3d.y
+                        # Left Hand Debounce
+                        current_left_gesture = current_gestures.get('Left')
+                        if current_left_gesture == left_last_seen_gesture:
+                            left_gesture_streak += 1
+                        else:
+                            left_last_seen_gesture = current_left_gesture
+                            left_gesture_streak = 1
+                            
+                        if left_gesture_streak >= GESTURE_STREAK_REQUIRED:
+                            if left_hand_status == HandState.TRACKING and left_last_seen_gesture == 'Open_Palm':
+                                left_hand_status = HandState.RELEASED
+                                left_gesture_streak = 0 # Reset streak to require a new one to change back
+                            elif left_hand_status == HandState.RELEASED and left_last_seen_gesture == 'Closed_Fist':
+                                left_hand_status = HandState.TRACKING
+                                initial_state['left_hand_head_y_offset'] = landmarks_3d[15].y - current_head_pos_3d.y
+                                left_gesture_streak = 0
 
-                        # Right Hand State
-                        if right_hand_status == HandState.TRACKING and current_gestures.get('Right') == 'Open_Palm':
-                            right_hand_status = HandState.RELEASED
-                        elif right_hand_status == HandState.RELEASED and current_gestures.get('Right') == 'Closed_Fist':
-                            right_hand_status = HandState.TRACKING
-                            initial_state['right_hand_head_y_offset'] = landmarks_3d[16].y - current_head_pos_3d.y
+                        # Right Hand Debounce
+                        current_right_gesture = current_gestures.get('Right')
+                        if current_right_gesture == right_last_seen_gesture:
+                            right_gesture_streak += 1
+                        else:
+                            right_last_seen_gesture = current_right_gesture
+                            right_gesture_streak = 1
+
+                        if right_gesture_streak >= GESTURE_STREAK_REQUIRED:
+                            if right_hand_status == HandState.TRACKING and right_last_seen_gesture == 'Open_Palm':
+                                right_hand_status = HandState.RELEASED
+                                right_gesture_streak = 0
+                            elif right_hand_status == HandState.RELEASED and right_last_seen_gesture == 'Closed_Fist':
+                                right_hand_status = HandState.TRACKING
+                                initial_state['right_hand_head_y_offset'] = landmarks_3d[16].y - current_head_pos_3d.y
+                                right_gesture_streak = 0
 
                         # --- TRACKING LOGIC ---
                         img_height, img_width, _ = display_image.shape
