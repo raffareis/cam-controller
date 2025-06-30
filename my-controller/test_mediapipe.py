@@ -64,11 +64,34 @@ def get_color_for_distance(distance, max_distance=0.5):
     return (0, green, red)
 
 def calculate_torso_angle(landmarks):
-    """Calculates the angle of the torso (shoulders) relative to the horizontal plane."""
-    # landmarks 11 (left shoulder) and 12 (right shoulder)
-    p1 = landmarks[11]
-    p2 = landmarks[12]
-    return math.atan2(p2.y - p1.y, p2.x - p1.x)
+    """Calculates the torso angle based on a vector from hip-center to shoulder-center."""
+    left_shoulder = landmarks[11]
+    right_shoulder = landmarks[12]
+    left_hip = landmarks[23]
+    right_hip = landmarks[24]
+
+    # Calculate midpoints
+    shoulder_midpoint_x = (left_shoulder.x + right_shoulder.x) / 2
+    shoulder_midpoint_y = (left_shoulder.y + right_shoulder.y) / 2
+    
+    hip_midpoint_x = (left_hip.x + right_hip.x) / 2
+    hip_midpoint_y = (left_hip.y + right_hip.y) / 2
+    
+    # Vector from hips to shoulders
+    dx = shoulder_midpoint_x - hip_midpoint_x
+    dy = shoulder_midpoint_y - hip_midpoint_y
+    
+    # Calculate angle with respect to the absolute vertical UP axis.
+    # math.atan2(y, x) calculates angle from the positive X axis.
+    # Vertical UP in MediaPipe's coordinates is along the negative Y axis.
+    # This corresponds to an angle of -pi/2 or 270 degrees. We add pi/2 to make UP = 0 rad.
+    angle_rad = math.atan2(dy, dx) + (math.pi / 2)
+    
+    # Normalize the angle to be within [-pi, pi]
+    if angle_rad > math.pi:
+        angle_rad -= 2 * math.pi
+        
+    return angle_rad
 
 def average_initial_state(buffer):
     """Averages the last few pose data points to get a stable initial state."""
@@ -311,6 +334,7 @@ if __name__ == "__main__":
 
                         # --- VJOY UPDATE LOGIC ---
                         MAX_TRAVEL_METERS = 0.4 # 40cm for full deflection
+                        MAX_LEAN_DEGREES = 25   # degrees for full weight shift
 
                         # Calculate pull amount (0 to 1), only considering downward movement
                         left_pull = max(0, -left_vertical_travel)
@@ -325,16 +349,20 @@ if __name__ == "__main__":
                         norm_left_brake = (norm_left_brake_0_to_1 * 2.0) - 1.0
                         norm_right_brake = -((norm_right_brake_0_to_1 * 2.0) - 1.0) # Inverted for Y-axis
 
-                        # Map to vJoy axes. Left hand -> X, Right hand -> Y
+                        # Normalize lean to [-1, 1] range
+                        norm_lean = np.clip(rel_incline_deg / MAX_LEAN_DEGREES, -1.0, 1.0)
+
+                        # Map to vJoy axes. Left hand -> X, Right hand -> Y, Lean -> RX
                         vjoy_x = map_to_vjoy_axis(norm_left_brake)
                         vjoy_y = map_to_vjoy_axis(norm_right_brake)
+                        vjoy_rx = map_to_vjoy_axis(norm_lean)
                         
                         vjoy_device.set_axis(pyvjoy.HID_USAGE_X, vjoy_x)
                         vjoy_device.set_axis(pyvjoy.HID_USAGE_Y, vjoy_y)
+                        vjoy_device.set_axis(pyvjoy.HID_USAGE_RX, vjoy_rx)
                         
                         # Set other axes to neutral for now
                         vjoy_device.set_axis(pyvjoy.HID_USAGE_Z, VJOY_CENTER)
-                        vjoy_device.set_axis(pyvjoy.HID_USAGE_RX, VJOY_CENTER)
 
                         # --- DRAWING MOVEMENT VECTORS ON 2D IMAGE ---
                         if latest_pose_result.pose_landmarks:
@@ -378,6 +406,21 @@ if __name__ == "__main__":
                         # Draw bars (OpenCV y-axis is inverted, so we subtract height)
                         cv2.line(display_image, (left_bar_x, zero_y), (left_bar_x, zero_y - left_bar_height), color_left_bar, 10)
                         cv2.line(display_image, (right_bar_x, zero_y), (right_bar_x, zero_y - right_bar_height), color_right_bar, 10)
+
+                        # --- DRAWING TILT BAR ---
+                        TILT_SCALE_FACTOR = img_width / 4 # How much the bar moves for full lean
+                        tilt_bar_y = int(img_height * 0.05)
+                        center_x = int(img_width / 2)
+
+                        # Draw zero-marker for the tilt bar
+                        cv2.line(display_image, (center_x, tilt_bar_y - 10), (center_x, tilt_bar_y + 10), (0, 0, 0), 2)
+
+                        # Calculate bar length and color
+                        tilt_bar_length = int(norm_lean * TILT_SCALE_FACTOR)
+                        tilt_color = get_color_for_distance(abs(norm_lean), max_distance=1.0)
+
+                        # Draw the tilt bar
+                        cv2.line(display_image, (center_x, tilt_bar_y), (center_x + tilt_bar_length, tilt_bar_y), tilt_color, 10)
 
             # Display calibration status on the screen
             cv2.putText(display_image, calibration_status.value, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
