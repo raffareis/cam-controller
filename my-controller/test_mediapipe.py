@@ -206,7 +206,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # STEP 2: Create a PoseLandmarker object.
-    pose_base_options = python.BaseOptions(model_asset_path='pose_landmarker.task', delegate='GPU')
+    pose_base_options = python.BaseOptions(model_asset_path='pose_landmarker_lite.task', delegate='GPU')
     pose_options = vision.PoseLandmarkerOptions(
         base_options=pose_base_options,
         running_mode=vision.RunningMode.LIVE_STREAM,
